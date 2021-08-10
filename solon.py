@@ -45,6 +45,9 @@ from nsdict import NSDict
 
 # internal debugging
 LOG = False
+if LOG:
+	import pdb
+	import traceback
 def log(*args, **kwargs):
 	if LOG:
 		for arg in args:
@@ -482,11 +485,15 @@ class Renderer:
 
 		It calls rendernode_, which recurses down the tree of nodes.
 		"""
+		if "output" not in self.context:
+			self.context["output"] = NSDict()
 		try:
-			result = self.rendernode_(node, [])
+			callstack = []
+			result = self.rendernode_(node, callstack)
 		except CommandException as e:
 			result = e.result
 
+		#assert(len(callstack) == 0)
 		return result
 
 	def genloopenv(self, node):
@@ -684,9 +691,13 @@ class Renderer:
 				elif n.name == "call":
 					llog("resolving call [%s]" % n.line)
 					# now get the wrapping function and its env
-					functionnode, env = self.createfuncenv(n)
-					# render the function node in the new environment:
-					output = rendernode_add(env, functionnode, callstack + [n])
+					try:
+						functionnode, env = self.createfuncenv(n)
+						# render the function node in the new environment:
+						output = rendernode_add(env, functionnode, callstack + [n])
+					except ExitCommand as e:
+						llog("caught ExitCommand in call, exiting the function")
+						output = e.result
 					result.append(output)
 
 				# calls rendernode in child env, appends output
@@ -729,6 +740,7 @@ class Renderer:
 					llog("resolving output [%s]" % n.line)
 					outputresult = rendernode_add(None, n, callstack)
 					name = os.path.join('output', self.evaluatetokens(n.tokens))
+					llog("output path: ", name, " -> ", len(outputresult), " characters")
 					self.context[name] = outputresult
 
 				# modifies current env
@@ -807,6 +819,8 @@ class Context:
 			self.vars.append(NSDict())
 		else:
 			self.vars.append(NSDict(vars))
+		# a place for the output to go
+		self.vars[-1]['output'] = NSDict()
 		return self
 
 	def pop(self, result):
@@ -815,11 +829,7 @@ class Context:
 		"""
 		assert(len(self.vars) > 1)
 		vars = self.vars.pop()
-		if 'output' in vars:
-			# merge all vars.output to self.vars.output:
-			if 'output' not in self.vars[-1]:
-				self.vars[-1]['output'] = NSDict()
-			self.vars[-1].output.update(vars.output)
+		self.vars[-1]["output"].update(vars["output"])
 		self['__output__'] = result
 		return vars
 

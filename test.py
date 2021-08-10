@@ -59,23 +59,22 @@ def main():
 					if result.strip() != expected.strip():
 						print "[FAIL] results do not match expected:"
 						print expected
-						pdb.set_trace()
-						return -2
+						assert(result.strip() == expected.strip())
 					print "[ OK ] results match expected results"
 				except Exception as e:
 					if expectedexc is None:
 						# we caught an exception, but did not expect any
 						print "[FAIL] No exception expected, caught exception [%s]\n\t" % e.__class__.__name__, e
-						return -3
+						raise
 					if not isinstance(e, expectedexc):
 						# we caught an exception, not the expected one (and our expected exception is not in its base classes)
 						print "[FAIL] Expected exception [%s], instead caught [%s]\n\t" % (context['exception'], e.__class__.__name__), e
-						return -4
+						raise
 					# we caught an exception, not the expected one (and our expected exception is not in its base classes)
 					print "[ OK ] Caught expected exception [%s]/[%s]\n\t" % (e.__class__.__name__, expectedexc), e
 				except:
 					print "[FAIL] Unknown exception, terminating"
-					return -5
+					raise
 
 				#print "--- done"
 
