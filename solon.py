@@ -485,6 +485,7 @@ class Renderer:
 
 		It calls rendernode_, which recurses down the tree of nodes.
 		"""
+		assert(len(self.context.vars) == 1)
 		if "output" not in self.context:
 			self.context["output"] = NSDict()
 		try:
@@ -494,6 +495,7 @@ class Renderer:
 			result = e.result
 
 		#assert(len(callstack) == 0)
+		assert(len(self.context.vars) == 1)
 		return result
 
 	def genloopenv(self, node):
@@ -588,9 +590,15 @@ class Renderer:
 			the stack (adding the result from the node into the output),
 			and returns the output.
 			"""
+			# we need to make sure that after the push happens, the pop happens.
+			# this is done with finally, so any exception that comes through
+			# keeps going, but no one ever leaves without popping the context.
 			self.context.push(env)
-			r = self.rendernode_(node, callstack)
-			self.context.pop(r)
+			r = ""
+			try:
+				r = self.rendernode_(node, callstack)
+			finally:
+				self.context.pop(r)
 			return r
 
 		## The main loop
@@ -643,6 +651,7 @@ class Renderer:
 				elif n.name == "for":
 					llog("resolving for [%s]" % n.line)
 					for env in self.genloopenv(n):
+						output = ""
 						try:
 							output = rendernode_add(env, n, callstack)
 						except SkipCommand as e:
@@ -666,26 +675,26 @@ class Renderer:
 					for i in n.children:
 						assert(i.name == "ifthen")
 						llog("resolving ifthen [%s]" % i.line)
-						try:
-							# evaluate the predicate against the env:
-							r = self.evaluatetokens(i.predtokens)
-							llog("result is", r)
-							if r:
+						# evaluate the predicate against the env:
+						r = self.evaluatetokens(i.predtokens)
+						llog("result is", r)
+						if r:
+							try:
 								output = rendernode_add(None, i, callstack)
 								result.append(output)
 								break
 								# exit on the first predicate that evaluated to True
-						except CommandException as e:
-							# catch and re-raise any command exceptions, so that halt, exit and skip don't get trapped here
-							raise
-						except RuntimeError as e:
-							raise
-						except EvaluationError as e:
-							# See notes under "Exception chaining"
-							raise EvaluationError(e, i), None, sys.exc_info()[2]
-						except Exception as e:
-							# See notes under "Exception chaining"
-							raise EvaluationError(e, i), None, sys.exc_info()[2]
+							except CommandException as e:
+								# catch and re-raise any command exceptions, so that halt, exit and skip don't get trapped here
+								raise
+							except RuntimeError as e:
+								raise
+							except EvaluationError as e:
+								# See notes under "Exception chaining"
+								raise EvaluationError(e, i), None, sys.exc_info()[2]
+							except Exception as e:
+								# See notes under "Exception chaining"
+								raise EvaluationError(e, i), None, sys.exc_info()[2]
 
 				# calls rendernode in child env, appends output
 				elif n.name == "call":
