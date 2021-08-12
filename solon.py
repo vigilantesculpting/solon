@@ -830,8 +830,6 @@ class Context:
 			self.vars.append(NSDict())
 		else:
 			self.vars.append(NSDict(vars))
-		# a place for the output to go
-		self.vars[-1]['output'] = NSDict()
 		return self
 
 	def pop(self, result):
@@ -840,7 +838,10 @@ class Context:
 		"""
 		assert(len(self.vars) > 1)
 		vars = self.vars.pop()
-		self.vars[-1]["output"].update(vars["output"])
+		if "output" in vars:
+			if "output" not in self.vars[-1]:
+				self.vars[-1]["output"] = NSDict()
+			self.vars[-1]["output"].update(vars["output"])
 		self['__output__'] = result
 		return vars
 
