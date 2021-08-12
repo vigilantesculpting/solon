@@ -49,9 +49,13 @@ def main():
 					expectedexc = getattr(sys.modules["solon"], context['exception'])				
 
 				s = solon.Solon(context)
+
+				keepWhitespace = context.get("config/keepWhitespace", False)
+				keepComments = context.get("config/keepComments", False)
+
 				try:
 					s.addtemplate(test, body)
-					result = s.rendertemplate(test)
+					result = s.rendertemplate(test, keepWhitespace, keepComments)
 					if expectedexc is not None:
 						print "[FAIL] Expected exception [%s] did not trigger" % expectedexc
 						return -1

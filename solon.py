@@ -75,11 +75,11 @@ class Solon:
 		"""
 		self.context[name] = self.parser.parsetext(name, text)
 
-	def rendertemplate(self, name):
+	def rendertemplate(self, name, keepWhitespace=False, keepComments=False):
 		"""This is the main entry point to rendering a named template
 		The template node is found in the environment using the given name as reference.
 		"""
-		return self.renderer.rendernode(self.context[name])
+		return self.renderer.rendernode(self.context[name], keepWhitespace, keepComments)
 
 
 #######################################################################
@@ -482,11 +482,14 @@ class Renderer:
 		self.context = context
 		self.evaluator = evaluator
 
-	def rendernode(self, node):
+	def rendernode(self, node, keepWhitespace=False, keepComments=False):
 		"""This is the main entry point to rendering a template node
 
 		It calls rendernode_, which recurses down the tree of nodes.
 		"""
+		self.keepWhitespace = keepWhitespace
+		self.keepComments = keepComments
+
 		assert(len(self.context.vars) == 1)
 		if "output" not in self.context:
 			self.context["output"] = NSDict()
@@ -616,14 +619,14 @@ class Renderer:
 					if len(n.expr) > 0:
 						out = [str(self.evaluatetokens(expr)) for expr in n.expr]
 						text = "".join(out)
-						if len(text.strip()) > 0 or ("config/keepWhitespace" in self.context and self.context["config/keepWhitespace"]):
+						if len(text.strip()) > 0 or self.keepWhitespace:
 							result.append(text)
 
 				elif n.name == "comment":
 					llog("resolving comment [%s]" % n.line)
 					# TODO the following should probably not be in the environment, but a constructor argument
 					#showcomments = 'config/showcomments' in self and self['config/showcomments']
-					if "config/keepComments" in self.context and self.context["config/keepComments"]:
+					if self.keepComments:
 						result.append("<!-- " + n.line + " -->")
 
 				# calls rendernode
